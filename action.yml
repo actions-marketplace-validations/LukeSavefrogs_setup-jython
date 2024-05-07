@@ -144,7 +144,7 @@ runs:
         mkdir -p ~/.local/bin;
         case "${{ steps.find_installer.outputs.file_type }}" in
           class)
-            jython_cmd="java -verbose -Dpython.home='${installation_path}' -cp '${installation_path}/jython.jar:$CLASSPATH' org.python.util.jython \"\$@\""
+            jython_cmd="java -verbose -Dpython.home='${installation_path}' -cp '${installation_path}/jython.jar' org.python.util.jython \"\$@\""
           ;;
 
           jar)
@@ -158,7 +158,12 @@ runs:
         echo ~/.local/bin >> $GITHUB_PATH
         # echo ${{ github.workspace }}/.local/bin >> $GITHUB_PATH
 
-    - name: Add to PATH
-      shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+    - name: Add to PATH (Linux and macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: echo ${HOME}/.local/bin >> $GITHUB_PATH
+    - name: Add to PATH (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
       run: |
-        echo ${HOME}/.local/bin >> $GITHUB_PATH
+        "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
