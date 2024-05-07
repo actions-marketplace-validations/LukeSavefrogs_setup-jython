@@ -167,3 +167,19 @@ runs:
       shell: pwsh
       run: |
         "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+    - name: DEBUG - Powershell
+      shell: pwsh
+      run: |
+        Write-Output "Printing '\$GITHUB_PATH' content:"
+        Get-Content $env:GITHUB_PATH;
+
+        Write-Output "Printing '~/.local/bin' content:"
+        Get-ChildItem ~/.local/bin;
+    - name: DEBUG - Bash
+      shell: bash
+      run: |
+        echo "Printing '\$GITHUB_PATH' content:"
+        cat $GITHUB_PATH;
+
+        echo "Printing '~/.local/bin' content:"
+        ls -l ~/.local/bin;
