@@ -144,7 +144,7 @@ runs:
         mkdir -p ~/.local/bin;
         case "${{ steps.find_installer.outputs.file_type }}" in
           class)
-            jython_cmd="java -verbose -Dpython.home='${installation_path}' -cp '${installation_path}/jython.jar' org.python.util.jython \"\$@\""
+            jython_cmd="java -verbose -Dpython.home=${installation_path} -cp ${installation_path}/jython.jar org.python.util.jython \"\$@\""
           ;;
 
           jar)
@@ -153,33 +153,31 @@ runs:
         esac
 
         echo "$jython_cmd" >> ~/.local/bin/jython;
-        
         chmod +x ~/.local/bin/jython;
-        echo ~/.local/bin >> $GITHUB_PATH
-        # echo ${{ github.workspace }}/.local/bin >> $GITHUB_PATH
+
+    - name: Setup Jython alias (pwsh)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $installation_path = Convert-Path "${{ inputs.installation-path }}"
+        if ("${{ steps.find_installer.outputs.file_type }}" -eq "class")  {
+          $jython_cmd = "java -Dpython.home=$installation_path -cp $installation_path\jython.jar org.python.util.jython %*"
+        } else {
+          $jython_cmd = "java -jar $installation_path\jython.jar %*"
+        }
+
+        mkdir -Force ~\.local\bin
+        $jython_cmd | Out-File -FilePath ~\.local\bin\jython.bat
 
     - name: Add to PATH (Linux and macOS)
       if: runner.os != 'Windows'
       shell: bash
-      run: echo ${HOME}/.local/bin >> $GITHUB_PATH
+      run: |
+        echo ~/.local/bin >> $GITHUB_PATH
+        echo "${{ steps.find_installer.outputs.file_type }}/bin" >> $GITHUB_PATH
     - name: Add to PATH (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-    - name: DEBUG - Powershell
-      shell: pwsh
-      run: |
-        Write-Output "Printing '\$GITHUB_PATH' content:"
-        Get-Content $env:GITHUB_PATH;
-
-        Write-Output "Printing '~/.local/bin' content:"
-        Get-ChildItem ~/.local/bin;
-    - name: DEBUG - Bash
-      shell: bash
-      run: |
-        echo "Printing '\$GITHUB_PATH' content:"
-        cat $GITHUB_PATH;
-
-        echo "Printing '~/.local/bin' content:"
-        ls -l ~/.local/bin;
+        "$HOME\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+        Convert-Path "${{ inputs.installation-path }}\bin" | Out-File -FilePath $env:GITHUB_PATH -Append

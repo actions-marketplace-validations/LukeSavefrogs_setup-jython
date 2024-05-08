@@ -69,7 +69,8 @@ jobs:
         echo "GITHUB_PATH"
         cat $GITHUB_PATH
 
-        cat ~/.local/bin/jython
+        [ -f ~/.local/bin/jython ] && cat ~/.local/bin/jython
+        [ -f ~/.local/bin/jython.bat ] && cat ~/.local/bin/jython.bat
       
     - name: Run Jython (Bash)
       shell: bash
@@ -84,4 +85,9 @@ jobs:
       shell: pwsh
       if: ${{ runner.os == 'Windows' }}
       run: |
-        jython -c 'import sys, os; print(os.name, sys.version); print "\n\nJython Works!\n\n"'
+        Describe JythonTest {
+          It 'verifies Jython works' {
+            $output = jython -c "import sys, os; print(os.name, sys.version); print '\n\nJython Works!\n\n'"
+            $output | Select-String -Quiet -Pattern "Jython Works!" | Should -Be true
+          }
+        }
