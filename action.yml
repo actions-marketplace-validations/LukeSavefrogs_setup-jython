@@ -172,12 +172,9 @@ runs:
     - name: Add to PATH (Linux and macOS)
       if: runner.os != 'Windows'
       shell: bash
-      run: |
-        echo ~/.local/bin >> $GITHUB_PATH
-        echo "${{ steps.find_installer.outputs.file_type }}/bin" >> $GITHUB_PATH
+      run: echo ~/.local/bin >> $GITHUB_PATH
     - name: Add to PATH (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
         "$HOME\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-        Convert-Path "${{ inputs.installation-path }}\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
