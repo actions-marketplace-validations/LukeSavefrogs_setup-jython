@@ -64,15 +64,29 @@ jobs:
     - name: Environment check
       shell: bash
       run: |
-        echo "ENVIRONMENT VARIABLES"
+        printf "\033[0;33mEnvironment variables:\033[0m\n";
         env
-        
-        echo "GITHUB_PATH"
-        cat $GITHUB_PATH
 
+        printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
+        printf "\033[0;33mGithub PATH (GITHUB_PATH='%s'):\033[0m\n" "$GITHUB_PATH";
+        cat "$GITHUB_PATH";
+
+        printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
+        printf "\033[0;33mInstallation folder content:\033[0m\n";
+        ls -la ~/jython/;
+
+        printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
+        printf "\033[0;33mBinary files:\033[0m\n";
+        ls -la ~/.local/bin/;
+
+        printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
+        printf "\033[0;33mBash script ('jython'):\033[0m\n";
         if [ -f ~/.local/bin/jython ]; then
           cat ~/.local/bin/jython;
         fi
+
+        printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
+        printf "\033[0;33mBatch script ('jython.bat'):\033[0m\n";
         if [ -f ~/.local/bin/jython.bat ]; then
           cat ~/.local/bin/jython.bat;
         fi
