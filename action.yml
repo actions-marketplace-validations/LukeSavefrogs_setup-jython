@@ -152,7 +152,7 @@ runs:
             # # Created on XXX by @user.name@
             #
             # "@jvm@" -Dpython.home="@location._top_@" -classpath "@location._top_@/jython.jar:$CLASSPATH" "@classname@" "$@"
-            jython_cmd="java -verbose -Dpython.path=${installation_path}/Lib -Dpython.home=${installation_path} -cp ${installation_path}/jython.jar org.python.util.jython \"\$@\""
+            jython_cmd="java -cp ${installation_path}/jython.jar org.python.util.jython \"\$@\""
           ;;
 
           jar)
@@ -170,7 +170,7 @@ runs:
       run: |
         $installation_path = Convert-Path "${{ inputs.installation-path }}"
         if ("${{ steps.find_installer.outputs.file_type }}" -eq "class")  {
-          $jython_cmd = "java -Dpython.path=${installation_path}/Lib -Dpython.home=$installation_path -cp $installation_path\jython.jar org.python.util.jython %*"
+          $jython_cmd = "java -cp ${installation_path}\jython.jar org.python.util.jython %*"
         } else {
           $jython_cmd = "java -jar $installation_path\jython.jar %*"
         }

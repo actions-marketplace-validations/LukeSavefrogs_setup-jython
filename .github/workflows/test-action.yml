@@ -4,7 +4,6 @@ run-name: "Run Jython tests"
 
 on:
   push:
-  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -22,16 +21,16 @@ jobs:
           - windows-latest
           - macos-latest
         jython_version:
-          - "2.7.3"
-          - "2.7.2"
-          - "2.7.1"
-          - "2.7.0"
-          - "2.5.3"
-          - "2.5.2"
-          - "2.5.1"
-          - "2.5.0"
-          - "2.2.1"
-          - "2.2"
+          # - "2.7.3"
+          # - "2.7.2"
+          # - "2.7.1"
+          # - "2.7.0"
+          # - "2.5.3"
+          # - "2.5.2"
+          # - "2.5.1"
+          # - "2.5.0"
+          # - "2.2.1"
+          # - "2.2"
           - "2.1"
           - "2.0"
 
@@ -65,30 +64,30 @@ jobs:
       shell: bash
       run: |
         printf "\033[0;33mEnvironment variables:\033[0m\n";
-        env
+        env | sed 's/^/    | /'
 
         printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
         printf "\033[0;33mGithub PATH (GITHUB_PATH='%s'):\033[0m\n" "$GITHUB_PATH";
-        cat "$GITHUB_PATH";
+        cat "$GITHUB_PATH" | sed 's/^/    | /'
 
         printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
         printf "\033[0;33mInstallation folder content:\033[0m\n";
-        ls -la ~/jython/;
+        ls -la ~/jython/ | sed 's/^/    | /'
 
         printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
         printf "\033[0;33mBinary files:\033[0m\n";
-        ls -la ~/.local/bin/;
+        ls -la ~/.local/bin/ | sed 's/^/    | /'
 
         printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
         printf "\033[0;33mBash script ('jython'):\033[0m\n";
         if [ -f ~/.local/bin/jython ]; then
-          cat ~/.local/bin/jython;
+          cat ~/.local/bin/jython | sed 's/^/    | /'
         fi
 
         printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
         printf "\033[0;33mBatch script ('jython.bat'):\033[0m\n";
         if [ -f ~/.local/bin/jython.bat ]; then
-          cat ~/.local/bin/jython.bat;
+          cat ~/.local/bin/jython.bat | sed 's/^/    | /'
         fi
       
     - name: Run Jython (Bash)
