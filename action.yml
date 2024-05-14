@@ -101,6 +101,7 @@ runs:
             case "${{ steps.find_installer.outputs.file_type }}" in
               class)
                 unzip ${{ steps.download_installer.outputs.temporary_file }} -d ${{ inputs.installation-path }}
+                chmod -R +rwx ${{ inputs.installation-path }};
               ;;
 
               jar)
