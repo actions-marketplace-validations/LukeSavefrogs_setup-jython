@@ -71,9 +71,3 @@ This action supports all versions (_both stable and development releases_) curre
 - [SourceForge - Stable](https://sourceforge.net/projects/jython/files/jython/) (`2.0` - `2.5.2`)
 - [SourceForge - Development](https://sourceforge.net/projects/jython/files/jython-dev/) (`2.5a1` - `2.7.0a2`)
 - [Maven](https://search.maven.org/artifact/org.python/jython-installer) (`2.5.3-rc1` - `2.7.3`)
-
-> [!WARNING]
->
-> As of **`v3`**, Jython versions **2.0**/**2.1** **work only on `windows-*` runners**!
->
-> See issue [#1](https://github.com/LukeSavefrogs/setup-jython/issues/1) for more info..
