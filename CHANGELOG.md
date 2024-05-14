@@ -5,9 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v4] - 2024-05-14
 
-## [3.0.0] - 2023-06-08
+### Fixed
+
+- Fix Jython not working on PowerShell for Windows runners by [@ZZy979](https://github.com/ZZy979) in [#11](https://github.com/LukeSavefrogs/setup-jython/pull/11)
+- Fix action failing on macos runners (updated Java 8 distribution to Zulu), add missing shebang by [@ZZy979](https://github.com/ZZy979) in [#10](https://github.com/LukeSavefrogs/setup-jython/pull/10)
+
+## [v3] - 2023-06-08
 
 ### Breaking changes
 
