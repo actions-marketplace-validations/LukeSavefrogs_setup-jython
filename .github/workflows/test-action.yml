@@ -5,6 +5,7 @@ run-name: "Run Jython tests"
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
