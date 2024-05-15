@@ -34,24 +34,13 @@ jobs:
           - "2.1"
           - "2.0"
 
-        # [GH-1] Jython 2.0 and 2.1 do not work on macOS and Ubuntu
-        exclude:
-          - os: ubuntu-latest
-            jython_version: "2.0"
-          - os: macos-latest
-            jython_version: "2.0"
-          - os: ubuntu-latest
-            jython_version: "2.1"
-          - os: macos-latest
-            jython_version: "2.1"
-
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
     
@@ -63,33 +52,49 @@ jobs:
     - name: Environment check
       shell: bash
       run: |
+        VERTICAL_SEPARATOR="\x1b[0;35m|\x1b[0m";
+        HORIZONTAL_SEPARATOR="\x1b[0;36m----------------------------------------------------------------------------------------------------\x1b[0m";
+
+        
         printf "\033[0;33mEnvironment variables:\033[0m\n";
-        env | sed 's/^/    | /'
+        env | sed "s/^/    $VERTICAL_SEPARATOR /"
 
-        printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
+
+        printf -- "$HORIZONTAL_SEPARATOR\n\n"
         printf "\033[0;33mGithub PATH (GITHUB_PATH='%s'):\033[0m\n" "$GITHUB_PATH";
-        cat "$GITHUB_PATH" | sed 's/^/    | /'
+        cat "$GITHUB_PATH" | sed "s/^/    $VERTICAL_SEPARATOR /"
 
-        printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
+
+        printf -- "$HORIZONTAL_SEPARATOR\n\n"
         printf "\033[0;33mInstallation folder content:\033[0m\n";
-        ls -la ~/jython/ | sed 's/^/    | /'
+        ls -la ~/jython/ | sed "s/^/    $VERTICAL_SEPARATOR /"
 
-        printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
+
+        printf -- "$HORIZONTAL_SEPARATOR\n\n"
         printf "\033[0;33mBinary files:\033[0m\n";
-        ls -la ~/.local/bin/ | sed 's/^/    | /'
+        ls -la ~/.local/bin/ | sed "s/^/    $VERTICAL_SEPARATOR /"
 
-        printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
+
+        printf -- "$HORIZONTAL_SEPARATOR\n\n"
         printf "\033[0;33mBash script ('jython'):\033[0m\n";
         if [ -f ~/.local/bin/jython ]; then
-          cat ~/.local/bin/jython | sed 's/^/    | /'
+          cat ~/.local/bin/jython | sed "s/^/    $VERTICAL_SEPARATOR /"
         fi
 
-        printf -- "\033[0;96m--------------------------------------------------\033[0m\n\n";
+
+        printf -- "$HORIZONTAL_SEPARATOR\n\n"
         printf "\033[0;33mBatch script ('jython.bat'):\033[0m\n";
         if [ -f ~/.local/bin/jython.bat ]; then
-          cat ~/.local/bin/jython.bat | sed 's/^/    | /'
+          cat ~/.local/bin/jython.bat | sed "s/^/    $VERTICAL_SEPARATOR /"
         fi
-      
+
+
+        printf -- "$HORIZONTAL_SEPARATOR\n\n"
+        printf "\033[0;33mPowershell script ('jython.ps1'):\033[0m\n";
+        if [ -f ~/.local/bin/jython.ps1 ]; then
+          cat ~/.local/bin/jython.ps1 | sed "s/^/    $VERTICAL_SEPARATOR /"
+        fi
+        
     - name: Run Jython (Bash)
       shell: bash
       run: |
@@ -99,13 +104,75 @@ jobs:
         echo "$output";
         echo "$output" | grep -q "Jython Works!";
 
+    - name: Run Jython (Bourne Shell)
+      shell: sh
+      run: |
+        set +e;
+
+        output="$(jython -c 'import sys, os; print(os.name, sys.version); print "\n\nJython Works!\n\n"')";
+        echo "$output";
+        echo "$output" | grep -q "Jython Works!";
+
+    - name: Run Jython (Batch)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        @rem ----------------------------------------------------------------------------------------------------
+        @rem WARNING: The commands may fail if not quoted with double quotes (") instead of single quotes (')
+        @rem
+        @rem          The single quotes are not recognized by the Windows Command Prompt (cmd) and are treated
+        @rem          as part of the command itself.
+        @rem
+        @rem          This means that if there are spaces in the command, each word will be treated as a separate
+        @rem          parameter and will fail.
+        @rem ----------------------------------------------------------------------------------------------------
+        SET "search_string=Jython Works!"
+
+        ECHO ----------------------------------------------------------------------------------------------------
+        ECHO The following command is expected to pass because of the double quotes:
+          
+        CALL jython -c "import sys, os; print(os.name, sys.version); print '\n\nJython Works!\n\n'" > double_quotes.temp.out 2>&1
+        TYPE double_quotes.temp.out
+
+        findstr /C:"%search_string%" double_quotes.temp.out > NUL
+        if %errorlevel% NEQ 0 (
+          ECHO The command failed.
+          EXIT /B 9
+        )
+
+
+        ECHO ----------------------------------------------------------------------------------------------------
+        ECHO The following command is expected to fail because of the single quotes:
+
+        CALL jython -c 'import sys, os; print(os.name, sys.version); print "\n\nJython Works!\n\n"' > single_quotes.temp.out 2>&1
+        TYPE single_quotes.temp.out
+
+        @rem Exit with error code 10 if the command does NOT fail as expected
+        findstr /C:"%search_string%" single_quotes.temp.out > NUL
+        if %errorlevel% EQU 0 (
+          ECHO The command should have failed but it did not.
+          EXIT /B 10
+        )
+        
+        ECHO ----------------------------------------------------------------------------------------------------
+        ECHO Tests passed successfully!
+        EXIT /B 0
+
     - name: Run Jython (Powershell)
       shell: pwsh
-      if: ${{ runner.os == 'Windows' }}
       run: |
+        echo ----------------------------------------------------------------------------------------------------
+        echo "Command: 'jython'"
+        jython -c "import sys, os; print(os.name, sys.version); print '\n\nJython Works!\n\n'"
+        
+        echo ----------------------------------------------------------------------------------------------------
+        echo "Command: 'jython.ps1'"
+        jython.ps1 -c "import sys, os; print(os.name, sys.version); print '\n\nJython Works!\n\n'"
+
+        echo ----------------------------------------------------------------------------------------------------
         Describe JythonTest {
           It 'verifies Jython works' {
-            $output = jython -c "import sys, os; print(os.name, sys.version); print '\n\nJython Works!\n\n'"
+            $output = jython.ps1 -c "import sys, os; print(os.name, sys.version); print '\n\nJython Works!\n\n'"
             $output | Select-String -Quiet -Pattern "Jython Works!" | Should -Be true
           }
         }

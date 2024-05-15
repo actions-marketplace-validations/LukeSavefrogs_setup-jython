@@ -17,7 +17,11 @@ steps:
   with:
     jython-version: '2.5.2'
 
-- run: jython -c 'import sys, os; print(os.name, sys.version)';
+- name: Run individual commands
+  run: jython -c 'import sys, os; print(os.name, sys.version)';
+
+- name: Run a specific script
+  run: jython /path/to/script.py
 ```
 
 ## Inputs

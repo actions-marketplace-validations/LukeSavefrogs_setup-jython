@@ -166,18 +166,23 @@ runs:
         chmod +x ~/.local/bin/jython;
 
     - name: Setup Jython alias (pwsh)
-      if: runner.os == 'Windows'
       shell: pwsh
       run: |
         $installation_path = Convert-Path "${{ inputs.installation-path }}"
+        $jython_path = Convert-Path "$installation_path\jython.jar"
+
         if ("${{ steps.find_installer.outputs.file_type }}" -eq "class")  {
-          $jython_cmd = "java -cp ${installation_path}\jython.jar org.python.util.jython %*"
+          $jython_cmd = "java -cp $jython_path org.python.util.jython %*"
+          $jython_pws = "java -cp $jython_path org.python.util.jython @args"
         } else {
-          $jython_cmd = "java -jar $installation_path\jython.jar %*"
+          $jython_cmd = "java -jar $jython_path %*"
+          $jython_pws = "java -jar $jython_path @args"
         }
 
-        mkdir -Force ~\.local\bin
-        $jython_cmd | Out-File -FilePath ~\.local\bin\jython.bat
+        Write-Output $jython_cmd | Out-File -FilePath ~\.local\bin\jython.bat -Append
+
+        Write-Output "#!/usr/bin/env pwsh" | Out-File -FilePath ~\.local\bin\jython.ps1
+        Write-Output $jython_pws | Out-File -FilePath ~\.local\bin\jython.ps1 -Append
 
     - name: Add to PATH (Linux and macOS)
       if: runner.os != 'Windows'
