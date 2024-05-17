@@ -7,6 +7,7 @@ This action provides the following functionalities for GitHub Actions users:
 
 - Installing a version of Jython and adding it to `PATH`
 - Customizing the installation path
+- Cache the installed Jython binaries for faster setup
 
 ## Basic usage
 
