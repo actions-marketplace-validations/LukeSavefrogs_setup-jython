@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add installer and jython binaries caching
+- Add `cache-hit` output value, which is set to `true` if the Jython data/binaries are retrieved from cache.
+
+## [v5] - 2024-05-16
+
+### Added
+
 - Now it is possible to use Jython 2.0 and 2.1 on `ubuntu` and `macos` runners!
 - Added support for Powershell on all runners (previously only on `windows` runners)
 - Added support for Windows Command Prompt (`cmd`) on windows runners. Notice that because of how the `cmd` handles single quotes it only works if no single quotes are used to enclose parameters: `jython.bat -c "print 'Hello world'"` will work, while `jython.bat -c 'print "Hello world"'` will not.

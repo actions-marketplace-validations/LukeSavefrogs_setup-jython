@@ -68,6 +68,16 @@ Specify the path where Jython will be installed. Please note that this is usuall
     </tbody>
 </table>
 
+## Outputs
+
+### `download-url`
+
+The URL from which the Jython installer was downloaded.
+
+### `cache-hit`
+
+Boolean value that indicates whether a cache hit occurred on the primary key.
+
 ## Supported versions
 
 This action supports all versions (_both stable and development releases_) currently listed on the official repositories:

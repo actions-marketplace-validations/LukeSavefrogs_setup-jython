@@ -20,6 +20,9 @@ outputs:
   download-url:
     description: "The URL from which the installer is downloaded"
     value: ${{ steps.find_installer.outputs.url }}
+  cache-hit:
+    description: "Whether the Jython binaries were restored from the cache"
+    value: ${{ steps.cache-jython.outputs.cache-hit }}
 
 runs:
   using: "composite"
@@ -29,9 +32,34 @@ runs:
         echo "Action running on ${{ runner.os }} ${{ runner.arch }} (name: '${{ runner.name }}')"
       shell: bash
 
+    # See https://github.com/actions/toolkit/issues/1035        
+    - uses: actions/github-script@v7
+      id: resources-hash
+      with:
+        script: return require('fs').createReadStream(require('path').join(process.env.GITHUB_ACTION_PATH, 'bin', 'resources.json')).pipe(require('crypto').createHash('sha1').setEncoding('hex'), 'finish').digest('hex')
+        result-encoding: string
+
+    - name: Cache Jython binaries
+      id: cache-jython
+      uses: actions/cache@v4
+      with:
+        key: ${{ runner.os }}-${{ runner.arch }}-${{ inputs.jython-version }}-${{ steps.resources-hash.outputs.result }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-${{ inputs.jython-version }}-
+        path: |
+          ${{ inputs.installation-path }}
+          ~/.local/bin/
+
+    - name: Set up JDK 8
+      uses: actions/setup-java@v4
+      with:
+        java-version: '8'
+        distribution: 'zulu'
+
     # Sadly, macos-latest images use Python 2.7 (dunno why)
     - name: Find Jython installer from resource list
       id: find_installer
+      if: ${{ steps.cache-jython.outputs.cache-hit != 'true' }}
       shell: python
       run: |
         import sys, os
@@ -75,14 +103,9 @@ runs:
           ]
           f.write('\n'.join(lines))
 
-    - name: Set up JDK 8
-      uses: actions/setup-java@v4
-      with:
-        java-version: '8'
-        distribution: 'zulu'
-
     - name: Download Jython Installer
       id: download_installer
+      if: ${{ steps.cache-jython.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         download_url="${{ steps.find_installer.outputs.url }}";
@@ -96,6 +119,7 @@ runs:
     
     - name: Install Jython
       id: installation
+      if: ${{ steps.cache-jython.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
             case "${{ steps.find_installer.outputs.file_type }}" in
@@ -138,6 +162,7 @@ runs:
             # rm -f ${{ steps.download_installer.outputs.temporary_file }}
             
     - name: Setup Jython alias
+      if: ${{ steps.cache-jython.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         installation_path="$(sed -r 's/^\s+//; s/\s+$//; s/\/+$//;' <<< "${{ inputs.installation-path }}")"
@@ -166,6 +191,7 @@ runs:
         chmod +x ~/.local/bin/jython;
 
     - name: Setup Jython alias (pwsh)
+      if: ${{ steps.cache-jython.outputs.cache-hit != 'true' }}
       shell: pwsh
       run: |
         $installation_path = Convert-Path "${{ inputs.installation-path }}"
