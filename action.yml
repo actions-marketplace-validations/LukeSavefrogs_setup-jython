@@ -68,7 +68,10 @@ runs:
         with open(r"${{ github.action_path }}/bin/resources.json", "r") as f:
           json_content = json.load(f)
         
-        matching_versions = list(filter(lambda el: el["version"] == "${{ inputs.jython-version }}".strip(), json_content))
+        matching_versions = [
+          el for el in json_content
+          if el["version"] == "${{ inputs.jython-version }}".strip()
+        ]
         
         if not matching_versions:
           print("::error title=No matching versions found::No versions were found that matched the string '${{ inputs.jython-version }}'")
@@ -81,7 +84,10 @@ runs:
           sys.exit(1)
         
         current_runner_os = "${{ runner.os }}-${{ runner.arch }}"
-        if type(matching_versions[0]['available']) == list and current_runner_os.lower() not in [s.lower() for s in matching_versions[0]['available']]:
+        if (
+          type(matching_versions[0]['available']) == list
+          and current_runner_os.lower() not in [s.lower() for s in matching_versions[0]['available']]
+        ):
           print("::warning title=Version not available for current runner::Runner '{}' not supported".format(current_runner_os))
           print("::error title=Version not available for current runner::The specified version (${{ inputs.jython-version }}) is currently available only for the following runners: {} (current is '{}').".format(', '.join(matching_versions[0]['available']), current_runner_os))
           sys.exit(1)
