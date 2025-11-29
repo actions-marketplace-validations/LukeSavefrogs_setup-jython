@@ -1,32 +1,88 @@
 # setup-jython
 
-This action provides the following functionality for GitHub Actions users:
+[![Jython tests](https://github.com/LukeSavefrogs/setup-jython/actions/workflows/test-action.yml/badge.svg)](https://github.com/LukeSavefrogs/setup-jython/actions/workflows/test-action.yml)
+[![Source download URLs status](https://github.com/LukeSavefrogs/setup-jython/actions/workflows/test-urls.yml/badge.svg)](https://github.com/LukeSavefrogs/setup-jython/actions/workflows/test-urls.yml)
+
+This action provides the following functionalities for GitHub Actions users:
 
 - Installing a version of Jython and adding it to `PATH`
 - Customizing the installation path
+- Cache the installed Jython binaries for faster setup
 
 ## Basic usage
 
 ```yml
 steps:
-- uses: actions/checkout@v3
-
 - name: Install Jython
-  uses: LukeSavefrogs/setup-jython@v1
+  uses: LukeSavefrogs/setup-jython@v3
   with:
     jython-version: '2.5.2'
-    installation-path: '~/jython/'   # Default
 
-- run: jython -c 'import sys, os; print(os.name, sys.version)';
+- name: Run individual commands
+  run: jython -c 'import sys, os; print(os.name, sys.version)';
+
+- name: Run a specific script
+  run: jython /path/to/script.py
 ```
+
+## Inputs
+
+### `jython-version`
+
+Specify the version of Jython to install. The value must be one of the versions listed in the [Supported versions](#supported-versions) section.
+
+<table>
+    <thead align=center>
+        <tr>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Default</th>
+        </tr>
+    </thead>
+    <tbody align=center>
+        <tr>
+            <td>string</td>
+            <td>yes</td>
+            <td>-</td>
+        </tr>
+    </tbody>
+</table>
+
+### `installation-path`
+
+Specify the path where Jython will be installed. Please note that this is usually not needed, since the binaries are always added to `PATH` anyway.
+
+<table>
+    <thead align=center>
+        <tr>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Default</th>
+        </tr>
+    </thead>
+    <tbody align=center>
+        <tr>
+            <td>string</td>
+            <td>no</td>
+            <td><code>~/jython/</code></td>
+        </tr>
+    </tbody>
+</table>
+
+## Outputs
+
+### `download-url`
+
+The URL from which the Jython installer was downloaded.
+
+### `cache-hit`
+
+Boolean value that indicates whether a cache hit occurred on the primary key.
 
 ## Supported versions
 
-This action supports all versions currently listed on the official repositories:
+This action supports all versions (_both stable and development releases_) currently listed on the official repositories:
 
-- [SourceForge](https://sourceforge.net/projects/jython/files/jython/) (`2.0` - `2.5.2`)
+- [SourceForge - Stable](https://sourceforge.net/projects/jython/files/jython/) (`2.0` - `2.5.2`)
+- [SourceForge - Development](https://sourceforge.net/projects/jython/files/jython-dev/) (`2.5a1` - `2.7.0a2`)
 - [Maven](https://search.maven.org/artifact/org.python/jython-installer) (`2.5.3-rc1` - `2.7.3`)
-
-> **NOTE**
->
-> As of `v1`, this action does not support Jython 2.0 and 2.1!

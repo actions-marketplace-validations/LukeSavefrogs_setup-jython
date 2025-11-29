@@ -1,5 +1,6 @@
 name: 'Setup Jython'
-description: 'Installs Jython using the provided version'
+description: 'Set up a specific version of Jython and add the command-line tools to the PATH.'
+author: 'Luca Salvarani'
 
 branding:
   icon: 'package'
@@ -9,7 +10,6 @@ inputs:
   jython-version:
     description: 'The version of Jython to use'
     required: true
-    default: "2.7.2"
 
   installation-path:
     description: 'The path where Jython will be installed'
@@ -17,93 +17,212 @@ inputs:
     default: "~/jython/"
 
 outputs:
-  jython-download-url:
-    description: "Random number"
-    value: ${{ steps.jython_installer_url.outputs.download_url }}
+  download-url:
+    description: "The URL from which the installer is downloaded"
+    value: ${{ steps.find_installer.outputs.url }}
+  cache-hit:
+    description: "Whether the Jython binaries were restored from the cache"
+    value: ${{ steps.cache-jython.outputs.cache-hit }}
 
 runs:
   using: "composite"
-  steps:
+  steps:  
+    - name: Print runner information
+      run: |
+        echo "Action running on ${{ runner.os }} ${{ runner.arch }} (name: '${{ runner.name }}')"
+      shell: bash
+
+    # See https://github.com/actions/toolkit/issues/1035        
+    - uses: actions/github-script@v7
+      id: resources-hash
+      with:
+        script: return require('fs').createReadStream(require('path').join(process.env.GITHUB_ACTION_PATH, 'bin', 'resources.json')).pipe(require('crypto').createHash('sha1').setEncoding('hex'), 'finish').digest('hex')
+        result-encoding: string
+
+    - name: Cache Jython binaries
+      id: cache-jython
+      uses: actions/cache@v4
+      with:
+        key: ${{ runner.os }}-${{ runner.arch }}-${{ inputs.jython-version }}-${{ steps.resources-hash.outputs.result }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-${{ inputs.jython-version }}-
+        path: |
+          ${{ inputs.installation-path }}
+          ~/.local/bin/
+
     - name: Set up JDK 8
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         java-version: '8'
-        distribution: 'temurin'
+        distribution: 'zulu'
 
-    - name: Determine Jython installer URL
-      shell: bash
-      id: jython_installer_url
+    # Sadly, macos-latest images use Python 2.7 (dunno why)
+    - name: Find Jython installer from resource list
+      id: find_installer
+      if: ${{ steps.cache-jython.outputs.cache-hit != 'true' }}
+      shell: python
       run: |
-        url_maven="https://repo1.maven.org/maven2/org/python/jython-installer/${{ inputs.jython-version }}/jython-installer-${{ inputs.jython-version }}.jar";
-        url_sourceforge="https://master.dl.sourceforge.net/project/jython/jython/${{ inputs.jython-version }}/jython_installer-${{ inputs.jython-version }}.jar?viasf=1";
+        import sys, os
+        import json
+
+        with open(r"${{ github.action_path }}/bin/resources.json", "r") as f:
+          json_content = json.load(f)
         
-        printf "Testing:\n"
-        printf -- "- Maven      : %s\n" "${url_maven}";
-        printf -- "- SourceForge: %s\n" "${url_sourceforge}";
+        matching_versions = [
+          el for el in json_content
+          if el["version"] == "${{ inputs.jython-version }}".strip()
+        ]
         
-        maven_headers="$(curl -sIL "${url_maven}")";
+        if not matching_versions:
+          print("::error title=No matching versions found::No versions were found that matched the string '${{ inputs.jython-version }}'")
+          sys.exit(1)
+        
+        print("Found {} versions matching the input string".format(len(matching_versions)))
+        
+        if len(matching_versions) > 1:
+          print("::error title=Too many versions found::Too many versions were found ({}) that matched the string '${{ inputs.jython-version }}'".format(len(matching_versions)))
+          sys.exit(1)
+        
+        current_runner_os = "${{ runner.os }}-${{ runner.arch }}"
+        if (
+          type(matching_versions[0]['available']) == list
+          and current_runner_os.lower() not in [s.lower() for s in matching_versions[0]['available']]
+        ):
+          print("::warning title=Version not available for current runner::Runner '{}' not supported".format(current_runner_os))
+          print("::error title=Version not available for current runner::The specified version (${{ inputs.jython-version }}) is currently available only for the following runners: {} (current is '{}').".format(', '.join(matching_versions[0]['available']), current_runner_os))
+          sys.exit(1)
 
-        if echo "${maven_headers}" | grep -qE "HTTP/([0-9.]+) 200 (OK)?"; then
-            download_url="${url_maven}";
-        else
-            download_url="${url_sourceforge}";
-        fi
-
-        echo "Download URL: ${download_url}"
-        echo "download_url=${download_url}" >> $GITHUB_OUTPUT
-
+        elif not matching_versions[0]['available']:
+          print("::error title=Version not available::The specified version (${{ inputs.jython-version }}) is currently not available for download.")
+          sys.exit(1)
+        
+        with open(os.getenv("GITHUB_OUTPUT"), "a+") as f:
+          file_extension = os.path.splitext(matching_versions[0]["resource_urls"]["official"])[1]
+          file_extension = file_extension[1:] if file_extension.startswith(".") else file_extension
+          lines = [
+            "details='{}'".format(json.dumps(matching_versions[0])),
+            "url=" + matching_versions[0]['resource_urls']['official'],
+            "version=" + matching_versions[0]['version'],
+            "modified_on=" + matching_versions[0]['modified_on'],
+            "file_type=" + file_extension,
+            "file_name=jython_installer." + (file_extension if file_extension else ".jar")
+          ]
+          f.write('\n'.join(lines))
 
     - name: Download Jython Installer
+      id: download_installer
+      if: ${{ steps.cache-jython.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
-        curl -sL "${{ steps.jython_installer_url.outputs.download_url }}" --output /tmp/jython_installer.jar;
+        download_url="${{ steps.find_installer.outputs.url }}";
+        output_file="/tmp/${{ steps.find_installer.outputs.file_name }}";
+
+        printf "Downloading %s file from '%s'...\n" "${{ steps.find_installer.outputs.file_type }}" "${download_url}";
+
+        curl -L "${download_url}" --output "${output_file}";
+
+        echo "temporary_file=${output_file}" >> "$GITHUB_OUTPUT"
     
     - name: Install Jython
+      id: installation
+      if: ${{ steps.cache-jython.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
-            # Installation types:
-            # - all       : everything (including src)
-            # - standard  : core, mod, demo, doc, ensurepip
-            #               standard is the default
-            # - minimum   : core
-            # - standalone: install a single, executable .jar,
-            #               containing all the modules
-            #
-            # Note - standalone installation may fail with the following stacktrace (tested on 2.7.2):1
-            # org.python.util.install.InstallerException: Error accessing jar file
-            #     at org.python.util.install.JarInstaller.inflate(JarInstaller.java:177)
-            #     at org.python.util.install.ConsoleInstaller.install(ConsoleInstaller.java:66)
-            #     at org.python.util.install.Installation.internalMain(Installation.java:389)
-            #     at org.python.util.install.Installation.main(Installation.java:43)
-            # Caused by: java.util.zip.ZipException: duplicate entry: module-info.class
-            #     at java.util.zip.ZipOutputStream.putNextEntry(ZipOutputStream.java:232)
-            #     at java.util.jar.JarOutputStream.putNextEntry(JarOutputStream.java:109)
-            #     at org.python.util.install.StandalonePackager.addJarFile(StandalonePackager.java:92)
-            #     at org.python.util.install.JarInstaller.inflate(JarInstaller.java:163)
-            #     ... 3 more
+            case "${{ steps.find_installer.outputs.file_type }}" in
+              class)
+                unzip ${{ steps.download_installer.outputs.temporary_file }} -d ${{ inputs.installation-path }}
+                chmod -R +rwx ${{ inputs.installation-path }};
+              ;;
 
-            # This is why I use the standard installation
-            # java -jar /tmp/jython_installer.jar \
-            #     --silent \
-            #     --directory ${{ inputs.installation-path }} \
-            #     --type standalone;
+              jar)
+                # Installation types:
+                # - all       : everything (including src)
+                # - standard  : core, mod, demo, doc, ensurepip
+                #               standard is the default
+                # - minimum   : core
+                # - standalone: install a single, executable .jar,
+                #               containing all the modules
+                #
+                # Note - standalone installation may fail with the following stacktrace (tested on 2.7.2):1
+                # org.python.util.install.InstallerException: Error accessing jar file
+                #     at org.python.util.install.JarInstaller.inflate(JarInstaller.java:177)
+                #     at org.python.util.install.ConsoleInstaller.install(ConsoleInstaller.java:66)
+                #     at org.python.util.install.Installation.internalMain(Installation.java:389)
+                #     at org.python.util.install.Installation.main(Installation.java:43)
+                # Caused by: java.util.zip.ZipException: duplicate entry: module-info.class
+                #     at java.util.zip.ZipOutputStream.putNextEntry(ZipOutputStream.java:232)
+                #     at java.util.jar.JarOutputStream.putNextEntry(JarOutputStream.java:109)
+                #     at org.python.util.install.StandalonePackager.addJarFile(StandalonePackager.java:92)
+                #     at org.python.util.install.JarInstaller.inflate(JarInstaller.java:163)
+                #     ... 3 more
 
-            java -jar /tmp/jython_installer.jar \
-                --silent \
-                --directory ${{ inputs.installation-path }} \
-                --type standard;
-                
+                java -jar ${{ steps.download_installer.outputs.temporary_file }} \
+                    --silent \
+                    --directory ${{ inputs.installation-path }} \
+                    --type standard;
+              ;;
+            esac 
+
             printf "Jython installed in the directory '%s'\n\n" "${{ inputs.installation-path }}"
-            ls -la ${{ inputs.installation-path }}
+
+            # rm -f ${{ steps.download_installer.outputs.temporary_file }}
             
     - name: Setup Jython alias
+      if: ${{ steps.cache-jython.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         installation_path="$(sed -r 's/^\s+//; s/\s+$//; s/\/+$//;' <<< "${{ inputs.installation-path }}")"
 
         mkdir -p ~/.local/bin;
-        printf 'java -jar %s/jython.jar "$@"\n' "${installation_path}" >> ~/.local/bin/jython;
-        chmod +x ~/.local/bin/jython;
-        echo ~/.local/bin >> $GITHUB_PATH
+        case "${{ steps.find_installer.outputs.file_type }}" in
+          class)
+            # cat installer/jython_template.unix_sh
+            # #!/bin/sh
+            # ###############################################################################
+            # #
+            # # This file generated by Jython installer
+            # # Created on XXX by @user.name@
+            #
+            # "@jvm@" -Dpython.home="@location._top_@" -classpath "@location._top_@/jython.jar:$CLASSPATH" "@classname@" "$@"
+            jython_cmd="java -cp ${installation_path}/jython.jar org.python.util.jython \"\$@\""
+          ;;
 
-        cat ~/.local/bin/jython
+          jar)
+            jython_cmd="java -jar ${installation_path}/jython.jar \"\$@\""
+          ;;
+        esac
+
+        echo "#!/bin/bash" >> ~/.local/bin/jython;
+        echo "$jython_cmd" >> ~/.local/bin/jython;
+        chmod +x ~/.local/bin/jython;
+
+    - name: Setup Jython alias (pwsh)
+      if: ${{ steps.cache-jython.outputs.cache-hit != 'true' }}
+      shell: pwsh
+      run: |
+        $installation_path = Convert-Path "${{ inputs.installation-path }}"
+        $jython_path = Convert-Path "$installation_path\jython.jar"
+
+        if ("${{ steps.find_installer.outputs.file_type }}" -eq "class")  {
+          $jython_cmd = "java -cp $jython_path org.python.util.jython %*"
+          $jython_pws = "java -cp $jython_path org.python.util.jython @args"
+        } else {
+          $jython_cmd = "java -jar $jython_path %*"
+          $jython_pws = "java -jar $jython_path @args"
+        }
+
+        Write-Output $jython_cmd | Out-File -FilePath ~\.local\bin\jython.bat -Append
+
+        Write-Output "#!/usr/bin/env pwsh" | Out-File -FilePath ~\.local\bin\jython.ps1
+        Write-Output $jython_pws | Out-File -FilePath ~\.local\bin\jython.ps1 -Append
+
+    - name: Add to PATH (Linux and macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: echo ~/.local/bin >> $GITHUB_PATH
+
+    - name: Add to PATH (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        "$HOME\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
